@@ -60,3 +60,15 @@ The default is an ordinary day. Routine offers arrival focus, fewer changes (12-
 The departure window compares ±15/30 minutes while preserving the arrival deadline. Late options are disabled. The explicitly synthetic ordinary-day crowd model assumes EWL/NSL/NEL are busier at 07:30–09:00 and 17:00–19:00. This demonstrates demand spreading, not observed occupancy or an operator reward programme. Preferences stay on this device; personas are explicitly chosen.
 
 Next: actual occupancy/service feeds, outdoor GPS device testing, calibrated travel times and safe pedestrian routes for location-specific active alternatives.
+
+## Developer handoff
+
+Continue from `main`. The app is a dependency-free mobile web app/PWA, not a native Android/iOS project. `dist/` contains the editable source, not disposable generated build output (except `dist/data/network.js`).
+
+1. Clone this repository and run `npm start` with Node.js 20+.
+2. Open http://localhost:5173; run `npm test` and `npm run check` before pushing changes. The current suite has 17 passing tests.
+3. Edit UI in `dist/app.js`, `dist/index.html`, and `dist/mobile.css`; routing in `dist/network-planner.js`. Rebuild station data with `node scripts/build-network.mjs` only when changing the source datasets/topology.
+4. Prioritise everyday commute value from the PS2 FAQ: explicit user preferences, departure flexibility, less crowded options and active travel. Keep disruptions as an additional scenario.
+5. Next implementation work: live LTA service data through a server-side proxy (never commit API keys), calibrated travel times, real-device GPS checks, and validated walking directions. Current crowding and disruption scenarios are synthetic.
+
+Published preview: https://margin-commuter-nebulax.jw2201.chatgpt.site (owner-private). GitHub pushes do not automatically update that preview; publishing requires the owner's Sites access. Local development does not require Sites or credentials. `.sites-runtime/` is ignored scratch work and is not required to run the app.
