@@ -1,75 +1,62 @@
 # Margin — a little breathing room
 
-A mobile-first NebulaX Problem Statement 2 prototype for **Rachel**, the fixed-schedule commuter travelling from Tampines to Raffles Place. Margin optimises for protecting her arrival deadline and avoiding unnecessary interruptions.
+A mobile-first Singapore commuter companion for NebulaX PS2. It supports everyday commuting with saved priorities, departure flexibility, walking breaks and arrival deadlines; disruption replays are a secondary flow.
 
-## Run locally
+## Run and test
 
-Requires Node.js 20 or newer. No dependency installation or API key is required.
+Node.js 20+, no dependencies or API keys required:
 
 ```sh
 npm start
-```
-
-Open http://localhost:5173. For a physical phone on the same network, use the computer's LAN address on port 5173. Offline service workers require HTTPS or localhost, so use the hosted HTTPS app when testing offline on a phone.
-
-```sh
 npm test
 npm run check
+node scripts/build-network.mjs
 ```
 
-## Working features
+Open http://localhost:5173. Use the published HTTPS link on phones for GPS, offline caching and home-screen installation.
 
-- App-first, single-column layout at every viewport size, with persistent thumb-friendly bottom navigation and a selected-route Start journey action.
-- Separate My plan / Route map screens, collapsible trip editing, safe-area spacing and bottom-sheet dialogs.
-- Installable web-app manifest, home-screen icons and iPhone/Android installation guidance under Routine. This is a PWA, not an App Store native binary.
+## Plan a journey
 
-- Nine curated origin/destination combinations, with walking legs, rail alternatives and arrival ranges.
-- Deadline-aware ranking: worst-case estimated arrival, a crowding penalty, and a penalty for lateness. Preserve the usual route if its buffer clears the user's threshold and it is within five minutes of the fastest scored option.
-- Clearly labelled synthetic replays for major disruption, normal service, minor delay, rain and next-day planned works.
-- Cached OpenStreetMap road geometry, original/alternative routes, and the affected segment distinguished visually.
-- Device-local routine preferences, larger text, a manually advanced journey walkthrough and an offline app shell.
-- Optional NEA current two-hour forecast lookup with issue and validity times and an explicit failure state.
+Tap FROM or TO, search by station name/code, or filter by line. Both pickers include 184 stations: NSL, EWL, NEL, CCL, DTL, TEL, the Changi Airport branch, and Bukit Panjang, Sengkang and Punggol LRT. Circle Line 6 is included following its 12 July 2026 opening; future TEL5, DTL3e, JRL and CRL stations are excluded.
 
-## Three-minute demo
+Tap FROM → Use current location to request a single GPS fix, then select a nearby boarding station. Nothing requests location automatically. Choose your arrival deadline, compare routes, and start the journey walkthrough. The Plan/Map switch and bottom navigation are designed for phones.
 
-1. Start with Tampines Central → One Raffles Place, leave 07:40, arrive by 08:45.
-2. The default injected EWL fault adds 20 minutes between Paya Lebar and Kallang. The usual route's cautious arrival is 08:51; the alternative via DTL and Bugis arrives 08:30–08:33, preserving 12 minutes. Those are reproducible scenario estimates, not observed performance claims.
-3. Open **Why this route?** to explain the buffer calculation. Compare route cards and map overlays.
-4. Select **Try a different morning → A small delay**. The usual route still works; the app chooses silence rather than a pointless interruption.
-5. Open **Looking ahead**, then plan around tomorrow's synthetic works.
-6. Start **Let's get you there** and advance through the walking, rail and interchange legs. After the app is cached, disconnect the browser and reload to show its offline warning and cached plan.
+## Routing and assumptions
 
-## Architecture and data
+`dist/network-planner.js` uses line-aware shortest-path search with transfer costs, relevant disruption penalties and optional crowd preferences. Alternatives are deduplicated; the number of routes reflects distinct available paths. The EWL replay only affects paths traversing Paya Lebar–Aljunied–Kallang. The pure engine and GPS helpers have 17 automated tests, including graph connectivity, cross-island transfers, same-station trips and GPS failures.
 
-Vanilla ES modules; no framework or build step. `dist/engine.js` is a pure deterministic scenario planner. `dist/app.js` provides UI and map rendering. `dist/sw.js` caches same-origin application assets. `server.mjs` is a dependency-free local file server; hosted deployment uses static assets.
+Times are uncalibrated estimates: station distance divided by 0.65 km/min (MRT) or 0.35 km/min (LRT), plus dwell allowance, a 3-minute initial wait and 5 minutes per interchange. Arrival uncertainty grows with ride time and transfers. GPS walking uses straight-line distance × 1.3 at 0.075 km/min. None of these are measured performance claims or live ETAs.
 
-The basemap is a single cached Overpass road extract covering 1.26–1.38 N, 103.82–103.96 E. Its embedded OSM base timestamp is preserved in `dist/data/osm-roads.json`. Coordinates are rounded to five decimal places and nonessential tags removed. OpenStreetMap contributors own the source data, available under ODbL: https://www.openstreetmap.org/copyright. No public tile server or repeated Overpass requests are used by the app.
+Station selection includes station-access time and ends at the selected station; it is not arbitrary address routing. GPS supplies a real origin but not verified pedestrian directions. Map lines connect station coordinates, not actual tracks. Exits, lifts, shelter, operating hours and LRT direction-specific schedules are not verified. LRT loops are modelled in both directions; check platform signs.
 
-Weather endpoint: https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast. Live weather is fetched only on request, identified by its issuance and validity window, and kept separate from replay transport conditions.
+## Data and licences
 
-## Honest limits and work before submission
+- Station coordinates: LTA/URA open data via https://github.com/elliotwutingfeng/singapore_train_station_coordinates. Source CSVs and licence attribution are in `data/`. Singapore Open Data Licence 1.0 applies; source rows labelled manual are estimates.
+- Network topology: LTA system map, checked 18 September 2026: https://www.lta.gov.sg/content/ltagov/en/getting_around/public_transport/rail_network.html. Main-line station-code sequences plus explicit airport/CCL branches and LRT loop closures generate the graph.
+- CCL6: https://www.lta.gov.sg/content/ltagov/en/newsroom/2026/6/news-releases/explore-three-new-circle-line-stage-6-stations-on-4-july-2026.html. Keppel, Cantonment and Prince Edward Road coordinates came from the source future-station file and were enabled after LTA's confirmed opening. CC33/CC34 replace CE2/CE1.
+- OSM: attributed bundled road extract for eastern/central Singapore (1.26–1.38 N, 103.82–103.96 E), under ODbL. Its source timestamp is embedded in `dist/data/osm-roads.json`. Outside this area the map displays the rail overlay without detailed roads. https://www.openstreetmap.org/copyright. No public tiles or repeated Overpass requests are used.
+- Weather: optional on-demand Tampines forecast from https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast. Issue and validity times are shown; current weather never silently overwrites transport replays.
 
-This is a **working interaction prototype**, not a production navigation system. Transport scenarios, crowding and duration ranges are synthetic. All overlays are illustrative connections between reference station coordinates, not computed OSM footpaths. The road basemap is real OSM data. The planner supports the listed nine corridors, not arbitrary addresses. It does not verify exits, lifts or sheltered walkways and is not intended for accessibility-constrained travel.
+## GPS, privacy and offline use
 
-The app does **not yet meet the brief's live transport routing requirement**. Before final submission, connect LTA TrainServiceAlerts, crowding and planned events through a server-side AccountKey proxy; replace curated route/time assumptions with a validated OSM-based or OneMap routing integration; calibrate uncertainty; and validate the entire journey on the ground. Use `AffectedSegments` rather than assuming disruptions are flat records. Add canonical line-code mappings before joining different LTA APIs. Never put AccountKey in the browser or commit it.
+Precise coordinates remain in JavaScript memory for this page session. They are not uploaded, logged or saved. No reverse-geocoding provider receives the position. Refreshing discards GPS and preserves only the chosen station. The app takes one fix rather than tracking movements.
 
-Proactive decisions run while the app is open. There is no background scheduler, push service or notification permission request. No AI model is claimed: the deterministic ranking is inspectable and sufficient for demonstrating the decision logic. No calibrated confidence or probability is claimed.
+GPS must be in Singapore, accurate to within 1 km, no older than 2 minutes when received, and within 3 km of an included station. Nearby station choices and walking times are approximate. Permission denial, timeout, stale/inaccurate fixes and out-of-area cases leave manual search available. Automated GPS tests use synthetic positions; phone permission flows and real outdoor accuracy still need device testing.
 
-## Privacy and offline behaviour
+Routine preferences and non-GPS walkthroughs use device-local storage until Routine → Reset local data. GPS walkthroughs are not persisted. Service-worker caching keeps the app, network and map usable offline with a warning; static/replay conditions are never labelled as live. Google Fonts is optional and falls back to system fonts.
 
-Preferences and the active walkthrough are stored only in this browser until **My routine → Reset local data**. No account, analytics, location tracking or server-side personal data. The public weather API receives the browser's ordinary network request, not the saved routine. Google Fonts is optional; system fonts work offline.
+## Architecture and hackathon status
 
-After a successful first visit, the service worker saves the app and map. When offline, the app keeps the replay plan and displays that conditions may have changed. It never presents cached data as a fresh live feed. External font and live-weather requests are not cached. Real-phone and underground field testing are still required.
+Static ES modules, no build step: `dist/app.js` is the UI, `dist/network-planner.js` the engine, `dist/location.js` GPS validation/distance helpers, and `dist/data/network.js` the generated graph. `dist/sw.js` caches assets; `server.mjs` is the local server.
 
-## PS2 alignment
-
-| Requirement | Prototype implementation | Remaining production work |
-| --- | --- | --- |
-| Specific commuter | Rachel, deadline and interruption threshold | Field interviews and validation |
-| Plan/replan door-to-door | Curated rail + walking itineraries; scenario-sensitive ranking | Full routing engine, verified access legs and live LTA integration |
-| OpenStreetMap base | Bundled attributed road geometry | Pedestrian routing graph |
-| Visualise alternatives | Selected, usual and affected route overlays, crowd levels, arrival windows | Validated route geometry |
-| Planned/unplanned | Separate labelled replay workflows | Official feeds and background delivery |
-| Beyond the brief | Arrival-buffer budget and selective interruption | Measure usefulness and notification precision |
+The app remains a prototype: crowding and disruptions are synthetic, times are estimates, and there is no background notification service. Before claiming PS2's complete live-routing requirement, connect official LTA feeds through a server-side AccountKey proxy, calibrate times, validate pedestrian legs and walk a real journey. No AI prediction accuracy is claimed.
 
 Brief: https://github.com/aochinwen/NebulaX-Hackathon-ProblemStatement/blob/main/PS2/PS2_README.md
+
+## Everyday companion (PS2 FAQ)
+
+The default is an ordinary day. Routine offers arrival focus, fewer changes (12-minute scoring penalty per interchange), or an optional 0/5/10/15-minute walking break included in timing and deadline calculations. No pedestrian path or health outcome is claimed. Less-crowded preference remains independent.
+
+The departure window compares ±15/30 minutes while preserving the arrival deadline. Late options are disabled. The explicitly synthetic ordinary-day crowd model assumes EWL/NSL/NEL are busier at 07:30–09:00 and 17:00–19:00. This demonstrates demand spreading, not observed occupancy or an operator reward programme. Preferences stay on this device; personas are explicitly chosen.
+
+Next: actual occupancy/service feeds, outdoor GPS device testing, calibrated travel times and safe pedestrian routes for location-specific active alternatives.

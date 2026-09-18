@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {planJourney} from '../dist/engine.js';
+test('walking breaks count toward the deadline and all journey steps',()=>{const base=planJourney({scenario:'normal'}),active=planJourney({scenario:'normal',priority:'active',walkBreak:10});assert.equal(active.usual.max,base.usual.max+10);assert.equal(active.usual.buffer,base.usual.buffer-10);assert.equal(active.usual.steps.reduce((n,s)=>n+s.minutes,0),active.usual.min);assert.throws(()=>planJourney({walkBreak:-5}),/preference/);});
+test('ordinary-day crowd model changes at the declared peak boundary',()=>{const early=planJourney({origin:'bedok',destination:'bugis',scenario:'normal',departure:'07:15'}),peak=planJourney({origin:'bedok',destination:'bugis',scenario:'normal',departure:'07:30'});assert.equal(early.usual.crowd,'low');assert.equal(peak.usual.crowd,'high');});
+test('fewer-change priority applies to each candidate and preserves timing',()=>{const base=planJourney({scenario:'normal'}),simple=planJourney({scenario:'normal',priority:'simple'});for(const r of simple.routes){const before=base.routes.find(x=>x.id===r.id);assert.equal(r.max,before.max);assert.equal(r.score,before.score+r.transfers*12);}assert.equal(simple.best.score,Math.min(...simple.routes.map(r=>r.score)));});
