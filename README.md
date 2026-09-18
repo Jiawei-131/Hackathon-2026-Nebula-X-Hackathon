@@ -19,6 +19,10 @@ npm run check
 
 ## Working features
 
+- App-first, single-column layout at every viewport size, with persistent thumb-friendly bottom navigation and a selected-route Start journey action.
+- Separate My plan / Route map screens, collapsible trip editing, safe-area spacing and bottom-sheet dialogs.
+- Installable web-app manifest, home-screen icons and iPhone/Android installation guidance under Routine. This is a PWA, not an App Store native binary.
+
 - Nine curated origin/destination combinations, with walking legs, rail alternatives and arrival ranges.
 - Deadline-aware ranking: worst-case estimated arrival, a crowding penalty, and a penalty for lateness. Preserve the usual route if its buffer clears the user's threshold and it is within five minutes of the fastest scored option.
 - Clearly labelled synthetic replays for major disruption, normal service, minor delay, rain and next-day planned works.
