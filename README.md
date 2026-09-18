@@ -49,7 +49,7 @@ Routine preferences and non-GPS walkthroughs use device-local storage until Rout
 
 ES modules with a small Node API server, no build step: `dist/app.js` is the UI, `dist/network-planner.js` the engine, `dist/location.js` GPS validation/distance helpers, and `dist/data/network.js` the generated graph. `dist/sw.js` caches assets; `server.mjs` is the local server.
 
-The app remains a prototype: schedule-derived rail timing still includes estimated waiting, interchange and uncertainty allowances, disruption replays are synthetic, and there is no background notification service. The server-side LTA proxy has been authenticated against TrainServiceAlerts, PCDRealTime and PCDForecast. Official current or forecast crowd levels appear on applicable route cards. Before claiming complete live navigation, physically validate pedestrian legs and capture a real disrupted response. No AI prediction accuracy is claimed.
+The app remains a prototype: schedule-derived rail timing still includes estimated waiting, interchange and uncertainty allowances, and a real disrupted LTA response has not yet been captured. Supported installed browsers can run periodic background checks after notification permission is granted, but the browser controls timing and support. The server-side LTA proxy has been authenticated against TrainServiceAlerts, PCDRealTime and PCDForecast. Official current or forecast crowd levels appear on applicable route cards. Before claiming complete live navigation, finish the in-app physical access checklist and capture a real disrupted response. No AI prediction accuracy is claimed.
 
 Brief: https://github.com/aochinwen/NebulaX-Hackathon-ProblemStatement/blob/main/PS2/PS2_README.md
 
@@ -59,7 +59,7 @@ The default is an ordinary day. Routine offers arrival focus, fewer changes (12-
 
 The departure window compares ±15/30 minutes while preserving the arrival deadline. Late options are disabled. Route cards fetch PCDRealTime for immediate boarding and PCDForecast for later applicable intervals. When neither applies, the explicitly synthetic ordinary-day model assumes EWL/NSL/NEL are busier at 07:30–09:00 and 17:00–19:00. Preferences stay on this device; personas are explicitly chosen.
 
-Multiple named routines can be enabled for selected weekdays and are evaluated in the day-ahead view. Next: outdoor GPS testing, physical pedestrian-route checks and background notifications if needed.
+Multiple named routines can be enabled for selected weekdays and are evaluated in the day-ahead view. The Routine screen includes notification permission, a test notification and a per-routine physical access checklist.
 
 ## Developer handoff
 
@@ -91,7 +91,8 @@ Expand **Try assistance demos** for free regular public-bus boarding or a free M
 - GET /api/lta/crowding?line=EWL: validates station-level PCDRealTime observations. Only readings fetched within 15 minutes and covering the planned boarding time can affect advice; other readings are shown as stale or not applicable.
 - GET /api/lta/crowding-forecast?line=EWL: validates and flattens daily PCDForecast intervals for future boarding times, with a six-hour server cache.
 - GET /api/lta/bus-arrivals?stop=83139: bus-arrival adapter with a 30-second cache; null means ETA/occupancy unavailable.
-- GET /api/lta/bus-bridge?from=paya&to=kallang: checked regular-bus alternatives derived from LTA BusStops and BusRoutes, enriched with live arrivals. It remains separate from free public-bus or MRT-shuttle assistance.
+- GET /api/lta/bus-bridge?from={station-id}&to={station-id}: island-wide direct regular-bus alternatives within 800 m of both rail stations, derived from LTA BusStops and BusRoutes and enriched with live arrivals. It remains separate from free public-bus or MRT-shuttle assistance.
+- GET /api/lta/train-alerts/sample: the official documentation-schema fixture for end-to-end disruption replay and regression checks. It is always labelled as a fixture, never live data.
 - GET /api/locations/search and GET /api/walking-route: OneMap address search plus OneMap-to-openrouteservice walking fallback. Geometry, endpoints, duration, distance and directions are validated before use.
 - GET /api/health: deployment health check. API responses use no-store and are excluded from service-worker caching.
 - PCDRealTime and PCDForecast are integrated for boarding and transfer stations on the main cards and checked alternatives. Labels distinguish “Live now”, “LTA forecast” and demo estimates.

@@ -62,6 +62,7 @@ test('HTTP server validates bus codes, shields files, and provides uncached API 
  assert.equal((await fetch(base+'/api/walking-route?startLon=0&startLat=0&endLon=0&endLat=0')).status,400);
  assert.equal((await fetch(base+'/api/walking-route?startLon=103.85&startLat=1.29&endLon=103.86&endLat=1.30')).status,200);
  assert.equal((await fetch(base+'/api/lta/train-alerts',{method:'POST'})).status,405);
+ const sample=await fetch(base+'/api/lta/train-alerts/sample');assert.equal(sample.status,200);assert.equal((await sample.json()).source,'fixture');
  const response=await fetch(base+'/api/lta/train-alerts');assert.equal(response.headers.get('cache-control'),'no-store');assert.equal((await response.json()).source,'unavailable');
  assert.equal((await fetch(base+'/api/health')).status,200);
 });

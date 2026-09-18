@@ -21,10 +21,10 @@ Scope: improve the existing **Margin** app for Problem Statement 2. The attached
 | Deterministic recommendation before explanation | Added for official checks; model is not needed to invent or rank routes. |
 | Bus arrival lookup | Server endpoint added and fixture-tested; not automatically matched to rail stations or shown as a bridging route. |
 | Everyday/minor/major/planned/weather demos | Existing scenarios retained, with separate assistance demos. |
-| Complete bus + MRT routing | A verified regular-bus bridge is implemented for the demonstrated Paya Lebar–Kallang disruption using LTA BusStops, BusRoutes and live BusArrival. Island-wide multimodal routing remains outside the MVP. |
+| Complete bus + MRT routing | Disruption handling now searches island-wide for direct regular buses within 800 m of the rail stations around an affected segment, using LTA BusStops, BusRoutes and live BusArrival. Multi-transfer bus planning remains outside the MVP. |
 | Door-to-door, address search, map picking | OneMap address search and OneMap-to-openrouteservice walking fallback are implemented. The Tampines Mall and One Raffles Place access legs were validated digitally with live credentials; physical checks and explicit map picking remain. |
 | Station-specific crowding | PCDRealTime and PCDForecast are validated and shown on applicable main-route cards and checked alternatives. Labels preserve the difference between current observations, forecasts and demo estimates. |
-| Saved journey weekday scheduling and enable/disable | Implemented locally: multiple named routines, weekday selection, enable/disable state and day-ahead matching. Background notifications remain outstanding. |
+| Saved journey weekday scheduling and enable/disable | Implemented locally: multiple named routines, weekday selection, enable/disable state and day-ahead matching. Installed browsers with Periodic Background Sync can check LTA alerts after permission; delivery timing remains browser-controlled. |
 | Gemini, Next.js, TypeScript, shadcn, Zod | Not introduced in this increment. These are implementation preferences in the attachment, not PS2 judging requirements. Existing dependency-free architecture and explicit runtime validation retained. |
 | Auth/database/background push | Not added; unnecessary for this MVP. |
 

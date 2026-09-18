@@ -17,6 +17,10 @@ export function createServer(adapter=createLtaAdapter(),oneMap=createOneMapAdapt
    const url=new URL(req.url,'http://localhost');
    if(url.pathname==='/api/health'){json(200,{status:'ok'});return;}
    if(url.pathname==='/api/lta/train-alerts'){json(200,await adapter.alerts());return;}
+   if(url.pathname==='/api/lta/train-alerts/sample'){
+    const sample=JSON.parse(await readFile(resolve(dirname(fileURLToPath(import.meta.url)),'data/fixtures/lta-train-service-alerts-documentation-sample.json'),'utf8'));
+    json(200,{source:'fixture',fetchedAt:new Date().toISOString(),...sample});return;
+   }
    if(url.pathname==='/api/lta/crowding'){
     const line=url.searchParams.get('line');
     if(!/^(NSL|EWL|CGL|CCL|CEL|NEL|DTL|BPL|SLRT|PLRT|TEL)$/.test(line||'')){json(400,{error:'Choose a supported train line.'});return;}
@@ -33,7 +37,7 @@ export function createServer(adapter=createLtaAdapter(),oneMap=createOneMapAdapt
    }
    if(url.pathname==='/api/lta/bus-bridge'){
     const from=url.searchParams.get('from'),to=url.searchParams.get('to');
-    if(!/^(paya|kallang)$/.test(from||'')||!/^(paya|kallang)$/.test(to||'')||from===to){json(400,{error:'Choose a supported disruption corridor.'});return;}
+    if(!/^[a-z0-9-]{2,40}$/.test(from||'')||!/^[a-z0-9-]{2,40}$/.test(to||'')||!busBridge.supports(from,to)){json(400,{error:'Choose two different supported rail stations.'});return;}
     json(200,await busBridge.find(from,to));return;
    }
    if(url.pathname==='/api/locations/search'){

@@ -65,7 +65,8 @@ test('crowding forecast is used for a future boarding interval',()=>{
 test('verified bus bridges preserve route facts and attach only matching live arrivals',async()=>{
   const adapter=createBusBridgeAdapter({bus:async stop=>({source:'live',services:[{service:'21',arrival:'2026-09-19T08:00:00+08:00',load:'SEA'},{service:'999',arrival:null,load:null}]})});
   const result=await adapter.find('paya','kallang');assert.equal(result.source,'lta');assert.ok(result.options.length>0);assert.equal(result.options[0].service,'21');assert.equal(result.options[0].load,'SEA');assert.equal(result.options[0].fromStop.code,'82109');
-  assert.equal((await adapter.find('raffles','tampines')).reason,'unsupported-corridor');
+  const island=await adapter.find('raffles','tampines');assert.ok(['lta','unavailable'].includes(island.source));
+  assert.equal(adapter.supports('raffles','tampines'),true);assert.equal(adapter.supports('missing','tampines'),false);
 });
 
 test('routine schedules require valid weekdays and respect enabled state',()=>{

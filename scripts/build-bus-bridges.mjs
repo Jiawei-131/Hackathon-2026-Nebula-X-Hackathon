@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {distanceKm} from '../dist/location.js';
+import {network} from '../dist/data/network.js';
 
 try {process.loadEnvFile?.();} catch {}
 const key=process.env.LTA_DATAMALL_ACCOUNT_KEY;
@@ -15,20 +16,12 @@ async function all(path){
  }
  return records;
 }
-const stations={paya:{name:'Paya Lebar',coord:[103.8926706888,1.3177432141]},kallang:{name:'Kallang',coord:[103.8713123609,1.3114123456]}};
 const [stops,routes]=await Promise.all([all('BusStops'),all('BusRoutes')]);
-const stopByCode=new Map(stops.map(stop=>[stop.BusStopCode,{code:stop.BusStopCode,name:stop.Description,road:stop.RoadName,coord:[Number(stop.Longitude),Number(stop.Latitude)]}]));
-const nearby=id=>stops.map(stop=>({stop:stopByCode.get(stop.BusStopCode),walkKm:distanceKm(stations[id].coord,[Number(stop.Longitude),Number(stop.Latitude)])})).filter(item=>item.walkKm<=0.8);
 const groups=new Map();for(const row of routes){const key=`${row.ServiceNo}|${row.Direction}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(row);}
-function choices(from,to){
- const origins=nearby(from),destinations=nearby(to),results=[];
- for(const rows of groups.values()){
-  rows.sort((a,b)=>a.StopSequence-b.StopSequence);const byStop=new Map(rows.map(row=>[row.BusStopCode,row]));
-  for(const origin of origins)for(const destination of destinations){const a=byStop.get(origin.stop.code),b=byStop.get(destination.stop.code);if(!a||!b||b.StopSequence<=a.StopSequence)continue;const km=Number(b.Distance)-Number(a.Distance);if(!(km>0&&km<15))continue;results.push({service:a.ServiceNo,direction:a.Direction,fromStop:origin.stop,toStop:destination.stop,walkFromMetres:Math.round(origin.walkKm*1000),walkToMetres:Math.round(destination.walkKm*1000),busStops:b.StopSequence-a.StopSequence,busDistanceKm:Number(km.toFixed(1)),score:origin.walkKm+destination.walkKm+km/20});}
- }
- const unique=new Map();for(const item of results.sort((a,b)=>a.score-b.score)){const key=`${item.service}|${item.fromStop.code}|${item.toStop.code}`;if(!unique.has(key))unique.set(key,item);}
- return [...unique.values()].slice(0,5).map(({score,...item})=>item);
-}
-const output={source:'LTA DataMall BusStops and BusRoutes',generatedAt:new Date().toISOString(),stations,bridges:{'paya|kallang':choices('paya','kallang'),'kallang|paya':choices('kallang','paya')}};
-fs.writeFileSync('data/bus-bridges.json',JSON.stringify(output,null,2)+'\n');
-console.log(`Loaded ${stops.length} stops and ${routes.length} route rows; wrote ${Object.values(output.bridges).reduce((n,x)=>n+x.length,0)} verified bridge options.`);
+const nearbyStops=stops.filter(stop=>Object.values(network.stations).some(station=>distanceKm(station.coord,[Number(stop.Longitude),Number(stop.Latitude)])<=.8));
+const nearbyCodes=new Set(nearbyStops.map(stop=>stop.BusStopCode));
+const compactStops=nearbyStops.map(stop=>({code:stop.BusStopCode,name:stop.Description,road:stop.RoadName,coord:[Number(stop.Longitude),Number(stop.Latitude)]}));
+const services=[];for(const rows of groups.values()){rows.sort((a,b)=>a.StopSequence-b.StopSequence);if(!rows.some(row=>nearbyCodes.has(row.BusStopCode)))continue;services.push({number:rows[0].ServiceNo,direction:rows[0].Direction,stops:rows.map(row=>row.BusStopCode),distances:rows.map(row=>Number(row.Distance))});}
+const output={source:'LTA DataMall BusStops and BusRoutes',generatedAt:new Date().toISOString(),coverage:'direct buses within 800 m of MRT/LRT stations',stops:compactStops,services};
+fs.writeFileSync('data/bus-network.json',JSON.stringify(output)+'\n');
+console.log(`Loaded ${stops.length} stops and ${routes.length} route rows; wrote ${compactStops.length} station-near stops and ${services.length} directional services.`);
