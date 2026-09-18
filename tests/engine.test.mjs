@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {planJourney,formatTime,scenarios} from '../dist/engine.js';
+test('major disruption reroutes around the affected east-west segment',()=>{const p=planJourney();assert.equal(p.best.id,'balanced');assert.equal(p.best.buffer,12);assert.ok(p.usual.buffer<0);assert.equal(p.interrupted,true);assert.ok(p.best.geometry.every(([lon,lat])=>!(lon===103.8829&&lat===1.3115)));});
+test('ordinary and minor-delay mornings do not interrupt Rachel',()=>{for(const scenario of ['normal','minor']){const p=planJourney({scenario});assert.equal(p.best.id,'usual');assert.equal(p.interrupted,false);assert.ok(p.usual.buffer>=10);}});
+test('impossible deadline is reported as late, never a positive buffer',()=>{const p=planJourney({deadline:'08:05'});assert.ok(p.routes.every(r=>r.buffer<0));assert.match(p.notice,/miss your deadline/);});
+test('planned event produces pre-departure rerouting',()=>{const p=planJourney({scenario:'planned'});assert.notEqual(p.best.id,'usual');assert.equal(p.interrupted,true);});
+test('all supported journeys have continuous endpoints and timing invariants',()=>{for(const origin of ['tampines','bedok','paya'])for(const destination of ['raffles','bugis','chinatown'])for(const scenario of Object.keys(scenarios)){const p=planJourney({origin,destination,scenario});for(const r of p.routes){assert.ok(r.min<=r.max);assert.equal(r.buffer,p.due-r.arrival);assert.equal(r.steps.reduce((n,s)=>n+s.minutes,0),r.min);assert.equal(r.steps[0].type,'walk');assert.equal(r.steps.at(-1).type,'walk');assert.ok(r.geometry.every(c=>c.length===2&&c.every(Number.isFinite)));}}});
+test('clock handles overnight arrivals and invalid corridors are rejected',()=>{assert.equal(formatTime(1505),'01:05');const p=planJourney({departure:'23:40',deadline:'00:45'});assert.equal(p.due,1485);assert.throws(()=>planJourney({origin:'unknown'}),/supported/);});
+test('planned works outside the journey window do not generate a delay',()=>{const p=planJourney({scenario:'planned',departure:'10:00',deadline:'11:15'});assert.equal(p.event.delay,0);assert.equal(p.interrupted,false);assert.equal(p.best.id,'usual');});
+test('invalid clock and threshold inputs fail safely',()=>{assert.throws(()=>planJourney({departure:'99:00'}),/valid time/);assert.throws(()=>planJourney({threshold:NaN}),/valid time/);});
