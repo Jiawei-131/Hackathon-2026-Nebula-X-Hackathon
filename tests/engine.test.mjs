@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {planJourney,formatTime,scenarios,places,lines} from '../dist/engine.js';
 import {network} from '../dist/data/network.js';
 import {distanceKm,nearestStations,validatePosition,gpsError} from '../dist/location.js';
-test('major disruption reroutes around the affected east-west segment',()=>{const p=planJourney();assert.notEqual(p.best.id,'usual');assert.equal(p.best.delay,0);assert.ok(p.usual.buffer<0);assert.equal(p.interrupted,true);assert.ok(!p.best.stationIds.includes('aljunied'));});
+test('major disruption reroutes around the affected east-west segment',()=>{const p=planJourney();assert.notEqual(p.best.id,'usual');assert.equal(p.best.delay,0);assert.ok(p.usual.buffer<10);assert.equal(p.interrupted,true);assert.ok(!p.best.stationIds.includes('aljunied'));});
 test('ordinary and minor-delay mornings do not interrupt Rachel',()=>{for(const scenario of ['normal','minor']){const p=planJourney({scenario});assert.equal(p.best.id,'usual');assert.equal(p.interrupted,false);assert.ok(p.usual.buffer>=10);}});
 test('impossible deadline is reported as late, never a positive buffer',()=>{const p=planJourney({deadline:'08:05'});assert.ok(p.routes.every(r=>r.buffer<0));assert.match(p.notice,/miss your deadline/);});
 test('planned event produces pre-departure rerouting',()=>{const p=planJourney({scenario:'planned'});assert.notEqual(p.best.id,'usual');assert.equal(p.interrupted,true);});

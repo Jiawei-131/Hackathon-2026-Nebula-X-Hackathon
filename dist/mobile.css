@@ -18,3 +18,17 @@ main{padding:8px 18px 180px;max-width:none}.page-heading{margin-bottom:18px;alig
 
 
 .everyday-card{padding:20px;background:#fff;border:1px solid #dce4de;border-radius:18px;margin-top:18px}.daily-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.daily-heading h3{margin:6px 0;font-size:20px}.everyday-card p{font-size:15px;line-height:1.6}.daily-metrics{display:flex;gap:24px;margin:16px 0}.daily-metrics span{display:grid;font-size:14px;gap:4px}.daily-metrics strong{font-size:23px;color:#153d35}.departure-options{display:grid;gap:10px;margin-top:16px}.departure-options button:disabled{opacity:.55;cursor:not-allowed}.departure-options small{display:block;line-height:1.6}
+
+/* Service checks stay readable in the same one-column mobile journey. */
+#service-check h3 { margin: 10px 0; }
+#service-check button { min-height: 44px; margin: 5px 0; }
+#service-check details { margin-top: 12px; }
+#service-check summary { cursor: pointer; padding: 12px 0; }
+#service-result { overflow-wrap: anywhere; }
+#service-result:not(:empty) { border-top: 1px solid #dce4d7; margin-top: 16px; padding-top: 16px; }
+#service-result li { margin-bottom: 14px; line-height: 1.5; }
+.service-segment { border-left: 3px solid #93613b; padding-left: 12px; margin: 16px 0; }
+.address-search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.address-search-row input { min-width: 0; }
+.picker-divider { margin: 18px 0 12px; text-align: center; color: #60746d; font-size: .875rem; }
+@media (max-width: 480px) { .address-search-row { grid-template-columns: 1fr; } }

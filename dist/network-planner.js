@@ -10,13 +10,13 @@ export const formatTime=n=>{n=((n%1440)+1440)%1440;return `${String(Math.floor(n
 export const affectedPairs=[['paya','aljunied'],['aljunied','kallang']];
 const affected=e=>e.line==='EWL'&&affectedPairs.some(([a,b])=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
 const adjacency=new Map(Object.keys(places).map(id=>[id,[]]));network.edges.forEach(e=>adjacency.get(e.from).push(e));
-function findPath(origin,destination,{delay=0,transferWeight=5,avoidEdges=new Set(),comfort=false}={}){
+function findPath(origin,destination,{delay=0,transferWeight=5,avoidEdges=new Set(),comfort=false,blockedEdges=new Set()}={}){
  const queue=[{station:origin,line:'',cost:0,path:[],paid:false}],costs=new Map();
  while(queue.length){queue.sort((a,b)=>a.cost-b.cost);const item=queue.shift(),key=`${item.station}|${item.line}|${item.paid}`;if(costs.has(key)&&costs.get(key)<item.cost)continue;if(item.station===destination)return item.path;
-  for(const edge of adjacency.get(item.station)||[]){if(item.path.some(e=>e.from===edge.to))continue;const change=item.line&&item.line!==edge.line;const incident=affected(edge)&&!item.paid?delay:0,paid=item.paid||affected(edge);const cost=item.cost+edge.minutes+(change?transferWeight:0)+incident+(avoidEdges.has(`${edge.from}|${edge.to}`)?3:0)+(comfort&&['EWL','NSL','NEL'].includes(edge.line)?1.5:0);const nextKey=`${edge.to}|${edge.line}|${paid}`;if(cost< (costs.get(nextKey)??Infinity)){costs.set(nextKey,cost);queue.push({station:edge.to,line:edge.line,cost,path:[...item.path,edge],paid});}}
+  for(const edge of adjacency.get(item.station)||[]){if(blockedEdges.has(`${edge.from}|${edge.to}|${edge.line}`))continue;if(item.path.some(e=>e.from===edge.to))continue;const change=item.line&&item.line!==edge.line;const incident=affected(edge)&&!item.paid?delay:0,paid=item.paid||affected(edge);const cost=item.cost+edge.minutes+(change?transferWeight:0)+incident+(avoidEdges.has(`${edge.from}|${edge.to}`)?3:0)+(comfort&&['EWL','NSL','NEL'].includes(edge.line)?1.5:0);const nextKey=`${edge.to}|${edge.line}|${paid}`;if(cost< (costs.get(nextKey)??Infinity)){costs.set(nextKey,cost);queue.push({station:edge.to,line:edge.line,cost,path:[...item.path,edge],paid});}}
  }return null;
 }
-export function planJourney({origin='tampines',destination='raffles',departure='07:40',deadline='08:45',scenario='disruption',comfort=false,threshold=10,priority="balanced",walkBreak=0,originLocation=null}={}){
+export function planJourney({origin='tampines',destination='raffles',departure='07:40',deadline='08:45',scenario='disruption',comfort=false,threshold=10,priority="balanced",walkBreak=0,originLocation=null,blockedEdges=[]}={}){
  if(!Object.hasOwn(places,origin)||!Object.hasOwn(places,destination)||!Object.hasOwn(scenarios,scenario))throw Error('Choose a supported MRT or LRT station.');
  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(departure)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(deadline)||![5,10,15].includes(Number(threshold)))throw Error('Choose a valid time and alert threshold.');
  if(!['balanced','simple','active'].includes(priority)||![0,5,10,15].includes(Number(walkBreak)))throw Error('Choose a valid commute preference.');
@@ -25,8 +25,8 @@ export function planJourney({origin='tampines',destination='raffles',departure='
  let due=clockMinutes(deadline);if(due<start)due+=1440;
  const from=places[origin],to=places[destination];let originWalk=3,originCoord=from.coord;
  if(originLocation){if(!Array.isArray(originLocation.coord)||originLocation.coord.length!==2||!originLocation.coord.every(Number.isFinite))throw Error('Invalid GPS position.');const distance=distanceKm(originLocation.coord,from.coord);if(distance>3)throw Error('Choose a station within 3 km of your location.');originWalk=Math.max(2,Math.ceil(distance*1.3/0.075));originCoord=originLocation.coord;}
- const base=findPath(origin,destination);if(base===null)throw Error('No connected rail route is available for these stations.');
- const paths=[{id:'usual',path:base}];const candidates=[findPath(origin,destination,{delay:event.delay,comfort}),findPath(origin,destination,{delay:event.delay,transferWeight:15}),findPath(origin,destination,{delay:event.delay,comfort:true,avoidEdges:new Set(base.map(e=>`${e.from}|${e.to}`))})];
+ const blocked=new Set(blockedEdges);const base=findPath(origin,destination,{blockedEdges:blocked});if(base===null)throw Error('No connected rail route is available for these stations.');
+ const paths=[{id:'usual',path:base}];const candidates=[findPath(origin,destination,{delay:event.delay,comfort,blockedEdges:blocked}),findPath(origin,destination,{delay:event.delay,transferWeight:15,blockedEdges:blocked}),findPath(origin,destination,{delay:event.delay,comfort:true,blockedEdges:blocked,avoidEdges:new Set(base.map(e=>`${e.from}|${e.to}`))})];
  const signature=path=>path.map(e=>`${e.to}:${e.line}`).join('|');const seen=new Set([signature(base)]);for(const path of candidates){if(path&&!seen.has(signature(path))){seen.add(signature(path));paths.push({id:`alternative-${paths.length}`,path});}}
  const routes=paths.slice(0,3).map(({id,path})=>{
   const impacted=path.some(affected),delay=impacted?event.delay:0,groups=[];for(const edge of path){if(groups.at(-1)?.line===edge.line){groups.at(-1).edges.push(edge);}else groups.push({line:edge.line,edges:[edge]});}

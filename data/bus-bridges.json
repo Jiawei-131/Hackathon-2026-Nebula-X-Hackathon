@@ -1,0 +1,286 @@
+{
+  "source": "LTA DataMall BusStops and BusRoutes",
+  "generatedAt": "2026-09-18T18:57:34.224Z",
+  "stations": {
+    "paya": {
+      "name": "Paya Lebar",
+      "coord": [
+        103.8926706888,
+        1.3177432141
+      ]
+    },
+    "kallang": {
+      "name": "Kallang",
+      "coord": [
+        103.8713123609,
+        1.3114123456
+      ]
+    }
+  },
+  "bridges": {
+    "paya|kallang": [
+      {
+        "service": "21",
+        "direction": 1,
+        "fromStop": {
+          "code": "82109",
+          "name": "City Plaza",
+          "road": "Geylang Rd",
+          "coord": [
+            103.89331774481381,
+            1.3151892235607
+          ]
+        },
+        "toStop": {
+          "code": "80101",
+          "name": "Kallang Stn/Opp Blk 2C",
+          "road": "Lor 1 Geylang",
+          "coord": [
+            103.87153830811837,
+            1.31251933500742
+          ]
+        },
+        "walkFromMetres": 293,
+        "walkToMetres": 126,
+        "busStops": 7,
+        "busDistanceKm": 2.8
+      },
+      {
+        "service": "26",
+        "direction": 1,
+        "fromStop": {
+          "code": "82109",
+          "name": "City Plaza",
+          "road": "Geylang Rd",
+          "coord": [
+            103.89331774481381,
+            1.3151892235607
+          ]
+        },
+        "toStop": {
+          "code": "80101",
+          "name": "Kallang Stn/Opp Blk 2C",
+          "road": "Lor 1 Geylang",
+          "coord": [
+            103.87153830811837,
+            1.31251933500742
+          ]
+        },
+        "walkFromMetres": 293,
+        "walkToMetres": 126,
+        "busStops": 7,
+        "busDistanceKm": 2.8
+      },
+      {
+        "service": "853M",
+        "direction": 2,
+        "fromStop": {
+          "code": "82109",
+          "name": "City Plaza",
+          "road": "Geylang Rd",
+          "coord": [
+            103.89331774481381,
+            1.3151892235607
+          ]
+        },
+        "toStop": {
+          "code": "80101",
+          "name": "Kallang Stn/Opp Blk 2C",
+          "road": "Lor 1 Geylang",
+          "coord": [
+            103.87153830811837,
+            1.31251933500742
+          ]
+        },
+        "walkFromMetres": 293,
+        "walkToMetres": 126,
+        "busStops": 7,
+        "busDistanceKm": 2.8
+      },
+      {
+        "service": "13",
+        "direction": 2,
+        "fromStop": {
+          "code": "82109",
+          "name": "City Plaza",
+          "road": "Geylang Rd",
+          "coord": [
+            103.89331774481381,
+            1.3151892235607
+          ]
+        },
+        "toStop": {
+          "code": "80039",
+          "name": "Opp Lor 1 Geylang Ter",
+          "road": "Geylang Rd",
+          "coord": [
+            103.87144344651483,
+            1.30992336177794
+          ]
+        },
+        "walkFromMetres": 293,
+        "walkToMetres": 166,
+        "busStops": 7,
+        "busDistanceKm": 2.6
+      },
+      {
+        "service": "51",
+        "direction": 1,
+        "fromStop": {
+          "code": "82109",
+          "name": "City Plaza",
+          "road": "Geylang Rd",
+          "coord": [
+            103.89331774481381,
+            1.3151892235607
+          ]
+        },
+        "toStop": {
+          "code": "80039",
+          "name": "Opp Lor 1 Geylang Ter",
+          "road": "Geylang Rd",
+          "coord": [
+            103.87144344651483,
+            1.30992336177794
+          ]
+        },
+        "walkFromMetres": 293,
+        "walkToMetres": 166,
+        "busStops": 7,
+        "busDistanceKm": 2.6
+      }
+    ],
+    "kallang|paya": [
+      {
+        "service": "13",
+        "direction": 1,
+        "fromStop": {
+          "code": "80031",
+          "name": "Kallang Stn",
+          "road": "Sims Ave",
+          "coord": [
+            103.8713149052975,
+            1.31107705658993
+          ]
+        },
+        "toStop": {
+          "code": "82011",
+          "name": "Aft Paya Lebar Quarter",
+          "road": "Sims Ave",
+          "coord": [
+            103.89480000904068,
+            1.31736957951855
+          ]
+        },
+        "walkFromMetres": 37,
+        "walkToMetres": 240,
+        "busStops": 7,
+        "busDistanceKm": 2.9
+      },
+      {
+        "service": "2",
+        "direction": 2,
+        "fromStop": {
+          "code": "80031",
+          "name": "Kallang Stn",
+          "road": "Sims Ave",
+          "coord": [
+            103.8713149052975,
+            1.31107705658993
+          ]
+        },
+        "toStop": {
+          "code": "82011",
+          "name": "Aft Paya Lebar Quarter",
+          "road": "Sims Ave",
+          "coord": [
+            103.89480000904068,
+            1.31736957951855
+          ]
+        },
+        "walkFromMetres": 37,
+        "walkToMetres": 240,
+        "busStops": 7,
+        "busDistanceKm": 2.9
+      },
+      {
+        "service": "51",
+        "direction": 2,
+        "fromStop": {
+          "code": "80031",
+          "name": "Kallang Stn",
+          "road": "Sims Ave",
+          "coord": [
+            103.8713149052975,
+            1.31107705658993
+          ]
+        },
+        "toStop": {
+          "code": "82011",
+          "name": "Aft Paya Lebar Quarter",
+          "road": "Sims Ave",
+          "coord": [
+            103.89480000904068,
+            1.31736957951855
+          ]
+        },
+        "walkFromMetres": 37,
+        "walkToMetres": 240,
+        "busStops": 7,
+        "busDistanceKm": 2.9
+      },
+      {
+        "service": "67",
+        "direction": 1,
+        "fromStop": {
+          "code": "80031",
+          "name": "Kallang Stn",
+          "road": "Sims Ave",
+          "coord": [
+            103.8713149052975,
+            1.31107705658993
+          ]
+        },
+        "toStop": {
+          "code": "82011",
+          "name": "Aft Paya Lebar Quarter",
+          "road": "Sims Ave",
+          "coord": [
+            103.89480000904068,
+            1.31736957951855
+          ]
+        },
+        "walkFromMetres": 37,
+        "walkToMetres": 240,
+        "busStops": 7,
+        "busDistanceKm": 2.9
+      },
+      {
+        "service": "13",
+        "direction": 1,
+        "fromStop": {
+          "code": "80031",
+          "name": "Kallang Stn",
+          "road": "Sims Ave",
+          "coord": [
+            103.8713149052975,
+            1.31107705658993
+          ]
+        },
+        "toStop": {
+          "code": "81051",
+          "name": "Sims Ville",
+          "road": "Sims Ave",
+          "coord": [
+            103.89033436777706,
+            1.31662343087312
+          ]
+        },
+        "walkFromMetres": 37,
+        "walkToMetres": 288,
+        "busStops": 6,
+        "busDistanceKm": 2.3
+      }
+    ]
+  }
+}

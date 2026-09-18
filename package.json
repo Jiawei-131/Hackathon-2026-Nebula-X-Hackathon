@@ -1,1 +1,17 @@
-{"name":"margin-commuter","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"node server.mjs","start":"node server.mjs","test":"node --test tests/*.test.mjs","check":"node --check dist/app.js && node --check dist/engine.js"}}
+{
+  "name": "margin-commuter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build:network": "node scripts/build-network.mjs",
+    "build:bus-bridges": "node scripts/build-bus-bridges.mjs"
+  },
+  "engines": {
+    "node": "22.x || 24.x"
+  }
+}
