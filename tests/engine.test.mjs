@@ -5,6 +5,16 @@ import {network} from '../dist/data/network.js';
 import {distanceKm,nearestStations,validatePosition,gpsError} from '../dist/location.js';
 test('major disruption reroutes around the affected east-west segment',()=>{const p=planJourney();assert.notEqual(p.best.id,'usual');assert.equal(p.best.delay,0);assert.ok(p.usual.buffer<10);assert.equal(p.interrupted,true);assert.ok(!p.best.stationIds.includes('aljunied'));});
 test('ordinary and minor-delay mornings do not interrupt Rachel',()=>{for(const scenario of ['normal','minor']){const p=planJourney({scenario});assert.equal(p.best.id,'usual');assert.equal(p.interrupted,false);assert.ok(p.usual.buffer>=10);}});
+test('a generous deadline never brings back a delayed route once an unaffected alternative is close in time',()=>{
+ // Regression: with a loose deadline the buffer/closeness "stay on usual" rule used to override the ranking
+ // back onto the incident-delayed route whenever the numbers looked close enough, recommending a ride straight
+ // into the reported fault even though a clean, equally-fast alternative existed.
+ const p=planJourney({scenario:'disruption',deadline:'09:45'});
+ assert.ok(p.usual.delay>0,'the usual route must still carry the incident penalty in this fixture');
+ assert.ok(p.usual.buffer>=10,'precondition: buffer alone would have looked safe enough to stick with usual');
+ assert.ok(p.usual.max<=p.best.max+5,'precondition: usual is close enough in time to have triggered the old override');
+ assert.notEqual(p.best.id,'usual');assert.equal(p.best.delay,0);
+});
 test('impossible deadline is reported as late, never a positive buffer',()=>{const p=planJourney({deadline:'08:05'});assert.ok(p.routes.every(r=>r.buffer<0));assert.match(p.notice,/miss your deadline/);});
 test('planned event produces pre-departure rerouting',()=>{const p=planJourney({scenario:'planned'});assert.notEqual(p.best.id,'usual');assert.equal(p.interrupted,true);});
 test('all supported journeys have continuous endpoints and timing invariants',()=>{for(const origin of ['tampines','bedok','paya'])for(const destination of ['raffles','bugis','chinatown'])for(const scenario of Object.keys(scenarios)){const p=planJourney({origin,destination,scenario});for(const r of p.routes){assert.ok(r.min<=r.max);assert.equal(r.buffer,p.due-r.arrival);assert.equal(r.steps.reduce((n,s)=>n+s.minutes,0),r.min);assert.equal(r.steps[0].type,'walk');assert.equal(r.steps.at(-1).type,'walk');assert.ok(r.geometry.every(c=>c.length===2&&c.every(Number.isFinite)));}}});
@@ -17,3 +27,12 @@ test('replay disruption does not penalise an unrelated northern journey',()=>{co
 test('same station returns walking access without invented train rides',()=>{const p=planJourney({origin:'orchard',destination:'orchard'});assert.equal(p.routes.length,1);assert.equal(p.best.lines.length,0);assert.ok(p.best.steps.every(s=>s.type==='walk'));});
 test('GPS finds nearby station and contributes a measured walking allowance',()=>{const coord=[103.787,1.438],nearby=nearestStations(coord,places);assert.equal(nearby[0].id,'woodlands');const position=validatePosition({coords:{longitude:coord[0],latitude:coord[1],accuracy:20},timestamp:1000},places,1100);const p=planJourney({origin:nearby[0].id,destination:'orchard',originLocation:position});assert.deepEqual(p.best.geometry[0],coord);assert.ok(p.best.steps[0].minutes>=2);assert.equal(distanceKm(coord,coord),0);});
 test('GPS rejects out-of-area, inaccurate, stale and invalid positions',()=>{const good={coords:{longitude:103.787,latitude:1.438,accuracy:20},timestamp:1000};assert.throws(()=>validatePosition({...good,coords:{...good.coords,longitude:0}},places,1100),/Singapore/);assert.throws(()=>validatePosition({...good,coords:{...good.coords,accuracy:2000}},places,1100),/approximate/);assert.throws(()=>validatePosition(good,places,200000),/out of date/);assert.throws(()=>nearestStations([NaN,1.3],places),/Singapore/);assert.match(gpsError({code:1}),/denied/);assert.match(gpsError({code:3}),/too long/);});
+test('train steps name only the boarding and alighting stations for every leg of a multi-change route',()=>{
+  const detour=planJourney({scenario:'disruption'}).routes.find(r=>r.lines.join('/')==='DTL/NEL/EWL');
+  assert.ok(detour);
+  const rail=detour.steps.filter(s=>s.type==='rail');
+  assert.deepEqual(rail.map(s=>s.title),['Take Downtown Line to Chinatown','Take North East Line to Outram Park','Take East–West Line to Raffles Place']);
+  assert.deepEqual(rail.map(s=>s.detail),['Board at Tampines · alight at Chinatown · 13 stops','Board at Chinatown · alight at Outram Park · 1 stop','Board at Outram Park · alight at Raffles Place · 2 stops']);
+  assert.deepEqual(detour.steps.filter(s=>s.type==='transfer').map(s=>s.title),['Change at Chinatown','Change at Outram Park']);
+  assert.ok(rail.every(s=>!s.detail.includes('→')));
+});
