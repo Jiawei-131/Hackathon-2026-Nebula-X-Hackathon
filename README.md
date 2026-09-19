@@ -2,6 +2,10 @@
 
 A mobile-first Singapore commuter companion for NebulaX PS2. It supports everyday commuting with saved priorities, departure flexibility, walking breaks and arrival deadlines; disruption replays are a secondary flow.
 
+## Demo video
+
+[Watch the solution demo video](media/hackathon_solution_video.mp4)
+
 ## Run and test
 
 Node.js 22 or 24 LTS. No external npm dependencies or API keys are needed for replay mode:
