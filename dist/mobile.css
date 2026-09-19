@@ -59,6 +59,28 @@ main{padding:8px 18px 180px;max-width:none}.page-heading{margin-bottom:18px;alig
 .scenario-chip{flex-shrink:0;min-height:44px;padding:0 16px;border:1px solid #d5ddd2;border-radius:999px;background:#fff;color:var(--ink);font-size:14px;font-weight:550;white-space:nowrap}
 .scenario-chip[aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fff}
 .crowd-bars.none i{background:#d6dfce}
+/* Route cards: benefit name + arrival/spare first, then line chain, facts and the trade-off against the recommendation. */
+.route-card .route-top{align-items:flex-start;gap:12px}
+.route-card .route-name{max-width:none;flex:1;min-width:0}
+.route-title{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.route-label{font-size:15px;font-weight:650}
+.route-card .recommend-tag{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.route-arrive{display:grid;flex-shrink:0;justify-items:end;gap:2px;text-align:right}
+.route-arrive strong{font-family:Manrope,sans-serif;font-size:17px;font-weight:700;white-space:nowrap}
+.route-spare{font-size:13px;font-weight:600;white-space:nowrap;color:#2f6b3d}
+.route-spare[data-tone=tight]{color:#8a5a00}
+.route-spare[data-tone=late]{color:#b3412a}
+.route-card .route-chain{margin:10px 0 6px}
+.route-facts{margin:0 0 4px;font-size:13px;line-height:1.5;color:#56654f}
+.route-compare{margin:0 0 6px;font-size:13px;font-weight:600;line-height:1.5;color:var(--ink)}
+button.journey-action{border:0;border-top:1px solid var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.bar-summary{display:grid;gap:3px;min-width:0}
+#bar-times{font-size:15px;font-weight:650}
+#bar-verdict{font-size:13px;font-weight:600;color:#2f6b3d}
+#bar-verdict[data-tone=tight]{color:#8a5a00}
+#bar-verdict[data-tone=late]{color:#b3412a}
+#bar-verdict[data-tone=wait]{color:#687764}
+.bar-steps{display:inline-flex;flex-shrink:0;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--green);color:#fff;font-size:14px;font-weight:600}
 /* Trip card: route + day, instruction, verdict, then a leave → arrive → deadline timeline. */
 .trip-heading{min-width:0;line-height:1.5;text-transform:uppercase}
 .trip-verdict{display:flex;align-items:center;gap:8px;margin:4px 0 0;font-size:16px;font-weight:650;color:#d9f4c8}
