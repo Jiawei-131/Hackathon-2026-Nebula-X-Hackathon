@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseAlerts,assistanceDemos,availableAssistance,routeImpacts} from '../dist/service-alerts.js';
-import {createLtaAdapter} from '../lib/api/lta.mjs';
+import {createLtaAdapter,FAILURE_TTL} from '../lib/api/lta.mjs';
 import {createServer} from '../server.mjs';
 import {planJourney,places} from '../dist/engine.js';
 import {network} from '../dist/data/network.js';
@@ -42,6 +42,17 @@ test('successful LTA checks are validated, timestamped and cached',async()=>{
  const adapter=createLtaAdapter({key:'test',now:()=>1000,fetcher:async(url,options)=>{calls++;assert.equal(options.headers.AccountKey,'test');return {ok:true,json:async()=>assistanceDemos.publicBus};}});
  const first=await adapter.alerts();assert.equal(first.source,'live');assert.equal(first.fetchedAt,new Date(1000).toISOString());await adapter.alerts();assert.equal(calls,1);
  const broken=createLtaAdapter({key:'test',fetcher:async()=>({ok:true,json:async()=>({value:{Status:1}})})});assert.equal((await broken.alerts()).source,'unavailable');
+});
+test('a failed LTA request is retried after a minute, while a good forecast stays cached for hours',async()=>{
+ let clock=Date.parse('2026-09-19T04:00:00Z'),calls=0,failing=true;
+ const forecast={value:[{Date:'2026-09-19T00:00:00+08:00',Stations:[{Station:'EW2',Interval:[{Start:'2026-09-19T07:30:00+08:00',CrowdLevel:'h'}]}]}]};
+ const adapter=createLtaAdapter({key:'test',now:()=>clock,fetcher:async()=>{calls++;if(failing)return {ok:false,json:async()=>({fault:{faultstring:'Rate limit quota violation'}})};return {ok:true,json:async()=>forecast};}});
+ assert.equal((await adapter.forecast('EWL')).source,'unavailable');assert.equal(calls,1);
+ clock+=FAILURE_TTL-1000;assert.equal((await adapter.forecast('EWL')).source,'unavailable');assert.equal(calls,1,'failure is briefly cached to avoid hammering LTA');
+ failing=false;clock+=2000;
+ const recovered=await adapter.forecast('EWL');assert.equal(recovered.source,'live');assert.equal(calls,2,'failure is not kept for the 6-hour forecast TTL');
+ clock+=5*3600000;assert.equal((await adapter.forecast('EWL')).source,'live');assert.equal(calls,2,'a good forecast is still served from cache hours later');
+ clock+=2*3600000;await adapter.forecast('EWL');assert.equal(calls,3,'the forecast is refreshed once its 6-hour TTL expires');
 });
 test('bus arrival adapter never fabricates missing ETA or crowd information',async()=>{
  const adapter=createLtaAdapter({key:'test',fetcher:async()=>({ok:true,json:async()=>({Services:[{ServiceNo:'10',NextBus:{EstimatedArrival:'',Load:''}}]})})});

@@ -28,20 +28,16 @@ export function parseCrowdForecast(data,line) {
  }
  return {line,forecast:true,stations};
 }
+// Margin plans ahead, so crowding comes only from LTA's 30-minute PCDForecast slot that covers the boarding time.
+// PCDRealTime readings lag by 10+ minutes and are ignored here; the forecast only covers the current day.
+const sgClock=ms=>new Date(ms+8*3600000).toISOString().slice(11,16);
 export function boardingCrowd(station,line,feeds,at,now=Date.now()) {
- const matches=feeds.flatMap(feed=>feed.source==='live'?(feed.stations||[]).filter(s=>station.codes.includes(s.station)&&(s.line===line||(line==='CCL'&&s.line==='CEL'))).map(s=>({...s,fetchedAt:feed.fetchedAt})):[]);
- const current=matches.filter(item=>!item.forecast).sort((a,b)=>Date.parse(b.end)-Date.parse(a.end))[0];
- if(current?.level){
-  const start=Date.parse(current.start),end=Date.parse(current.end),fetched=Date.parse(current.fetchedAt),fresh=Number.isFinite(fetched)&&now-fetched<=15*60000&&fetched<=now+60000&&now>=start&&now<end;
-  if(fresh&&at>=start&&at<end)return {...current,source:'live',label:`${current.level} · Live now`,rank:({Low:0,Moderate:5,High:15})[current.level]};
- }
- const forecast=matches.filter(item=>item.forecast&&item.level&&at>=Date.parse(item.start)&&at<Date.parse(item.end)).sort((a,b)=>Date.parse(b.fetchedAt)-Date.parse(a.fetchedAt))[0];
+ const forecast=feeds.flatMap(feed=>feed.source==='live'&&feed.forecast?(feed.stations||[]).filter(s=>station.codes.includes(s.station)&&(s.line===line||(line==='CCL'&&s.line==='CEL'))&&s.level&&at>=Date.parse(s.start)&&at<Date.parse(s.end)).map(s=>({...s,fetchedAt:feed.fetchedAt})):[]).sort((a,b)=>Date.parse(b.fetchedAt)-Date.parse(a.fetchedAt))[0];
  if(forecast){
   const fetched=Date.parse(forecast.fetchedAt);
   if(Number.isFinite(fetched)&&now-fetched<=36*3600000&&fetched<=now+60000)return {...forecast,source:'forecast',label:`${forecast.level} · LTA forecast`,rank:({Low:0,Moderate:5,High:15})[forecast.level]};
  }
- if(current)return {...current,source:'stale',label:'Live observation does not cover your boarding time',rank:0};
- return {label:'Crowd information unavailable',source:'unavailable',rank:0};
+ return {label:Number.isFinite(at)?`No LTA forecast for ${sgClock(at)}`:'No LTA forecast',source:'unavailable',rank:0};
 }
 export function nextDeparture(time,now=Date.now()) {
  const sg=new Date(now+8*3600000),date=sg.toISOString().slice(0,10);

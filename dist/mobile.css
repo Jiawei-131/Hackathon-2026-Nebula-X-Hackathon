@@ -58,6 +58,24 @@ main{padding:8px 18px 180px;max-width:none}.page-heading{margin-bottom:18px;alig
 .scenario-chips::-webkit-scrollbar{display:none}
 .scenario-chip{flex-shrink:0;min-height:44px;padding:0 16px;border:1px solid #d5ddd2;border-radius:999px;background:#fff;color:var(--ink);font-size:14px;font-weight:550;white-space:nowrap}
 .scenario-chip[aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fff}
+.crowd-bars.none i{background:#d6dfce}
+.chip-divider{flex-shrink:0;align-self:stretch;width:1px;margin:6px 2px;background:#d5ddd2}
+.chip-group{display:flex;flex-shrink:0;align-items:center;gap:8px}
+.chip-group-label{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#7a5412}
+.chip-group .scenario-chip[aria-pressed=true]{border-color:#7a5412;background:#7a5412}
+.demo-pill[data-mode=live]{border-color:#b9d7ab;background:#e6f3de;color:#1f5f33}
+.data-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.5px;line-height:1.6;text-transform:uppercase;white-space:nowrap;vertical-align:middle}
+.data-badge.live{background:#e3f1dc;color:#1f5f33}
+.data-badge.live:before{content:'';width:6px;height:6px;border-radius:50%;background:#2f8f4e}
+.data-badge.est{background:#eceee9;color:#4f5b51}
+.data-badge.sim{background:#fbeccc;color:#7a5412}
+.decision-card .data-badge.live{background:#2d5a45;color:#d9f4c8}
+.decision-card .data-badge.live:before{background:#9fe07a}
+.decision-card .data-badge.est{background:#35503f;color:#dce6d8}
+.decision-card .data-badge.sim{background:#5c4a1f;color:#fbe3a8}
+.card-eyebrow #scenario-label{margin-left:auto}
+.service-status[data-tone=sim] .service-icon{background:#fbeccc;color:#7a5412}
+.service-sub .data-badge{margin-right:4px}
 .decision-card.is-loading #decision-title,.decision-card.is-loading .buffer-number{animation:margin-pulse 1.4s ease-in-out infinite}
 @keyframes margin-pulse{50%{opacity:.45}}
 @media(prefers-reduced-motion:reduce){.decision-card.is-loading #decision-title,.decision-card.is-loading .buffer-number{animation:none}}

@@ -45,21 +45,30 @@ test('verified first and last walks replace station allowances and geometry',()=
   assert.equal(result.best.min,base.best.min+8);assert.deepEqual(result.best.geometry[0],start);assert.deepEqual(result.best.geometry.at(-1),end);assert.equal(result.best.steps[0].source,'OneMap');assert.equal(result.best.steps.at(-1).source,'OneMap');
 });
 
-test('crowding only scores fresh readings that cover boarding time',()=>{
+test('real-time crowd readings are never used, even when they cover the boarding time',()=>{
   const now=Date.parse('2026-09-19T00:05:00Z'),data=parseCrowding({value:[{Station:'EW2',StartTime:'2026-09-19T08:00:00+08:00',EndTime:'2026-09-19T08:30:00+08:00',CrowdLevel:'h'}]},'EWL');
-  const feed={source:'live',fetchedAt:new Date(now).toISOString(),...data};
-  assert.equal(boardingCrowd(places.tampines,'EWL',[feed],Date.parse('2026-09-19T00:10:00Z'),now).rank,15);
-  assert.equal(boardingCrowd(places.tampines,'EWL',[feed],Date.parse('2026-09-19T01:10:00Z'),now).rank,0);
-  assert.equal(boardingCrowd(places.tampines,'EWL',[{...feed,fetchedAt:'2026-09-18T23:00:00Z'}],Date.parse('2026-09-19T00:10:00Z'),now).source,'stale');
-  const plan=annotateCrowding(planJourney({scenario:'normal'}),[feed],places,Date.parse('2026-09-19T00:10:00Z'),boardingCrowd);
-  assert.equal(plan.usual.crowdObservations[0].level,'High');assert.ok(Number.isFinite(nextDeparture('07:40',now)));
+  const feed={source:'live',fetchedAt:new Date(now).toISOString(),...data},result=boardingCrowd(places.tampines,'EWL',[feed],Date.parse('2026-09-19T00:10:00Z'),now);
+  assert.equal(result.source,'unavailable');assert.equal(result.level,undefined);assert.equal(result.label,'No LTA forecast for 08:10');
+  assert.ok(Number.isFinite(nextDeparture('07:40',now)));
+});
+test('crowding forecast only covers its own day, so tomorrow\'s boarding reports no forecast',()=>{
+  const now=Date.parse('2026-09-19T03:53:00Z'),tomorrow=Date.parse('2026-09-19T23:40:00Z');
+  const parsed=parseCrowdForecast({value:[{Date:'2026-09-19T00:00:00+08:00',Stations:[{Station:'EW2',Interval:[{Start:'2026-09-19T07:30:00+08:00',CrowdLevel:'h'}]}]}]},'EWL');
+  const result=boardingCrowd(places.tampines,'EWL',[{source:'live',fetchedAt:new Date(now).toISOString(),...parsed}],tomorrow,now);
+  assert.equal(result.source,'unavailable');assert.equal(result.label,'No LTA forecast for 07:40');
+  const plan=annotateCrowding(planJourney({scenario:'normal'}),[{source:'live',fetchedAt:new Date(now).toISOString(),...parsed}],places,tomorrow,boardingCrowd);
+  assert.ok(plan.routes.every(route=>route.crowdObservations.every(item=>item.source==='unavailable')));
 });
 
 test('crowding forecast is used for a future boarding interval',()=>{
   const now=Date.parse('2026-09-19T00:05:00Z'),at=Date.parse('2026-09-19T01:10:00Z');
   const parsed=parseCrowdForecast({value:[{Date:'2026-09-19T00:00:00+08:00',Stations:[{Station:'EW2',Interval:[{Start:'2026-09-19T09:00:00+08:00',CrowdLevel:'m'}]}]}]},'EWL');
   const result=boardingCrowd(places.tampines,'EWL',[{source:'live',fetchedAt:new Date(now).toISOString(),...parsed}],at,now);
-  assert.equal(result.source,'forecast');assert.equal(result.level,'Moderate');assert.equal(result.rank,5);
+  assert.equal(result.source,'forecast');assert.equal(result.level,'Moderate');assert.equal(result.rank,5);assert.equal(result.label,'Moderate · LTA forecast');
+  const stale=boardingCrowd(places.tampines,'EWL',[{source:'live',fetchedAt:'2026-09-17T00:00:00Z',...parsed}],at,now);
+  assert.equal(stale.source,'unavailable','a forecast fetched more than 36 hours ago is not trusted');
+  const plan=annotateCrowding(planJourney({scenario:'normal'}),[{source:'live',fetchedAt:new Date(now).toISOString(),...parsed}],places,at,boardingCrowd);
+  assert.equal(plan.usual.crowdObservations[0].level,'Moderate');assert.equal(plan.usual.crowdObservations[0].source,'forecast');
 });
 
 test('verified bus bridges preserve route facts and attach only matching live arrivals',async()=>{

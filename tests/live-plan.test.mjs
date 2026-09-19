@@ -34,6 +34,7 @@ test('an EWL disruption on Rachel\'s corridor produces an unaffected alternative
  assert.equal(result.status,'rerouted');
  assert.equal(routeImpacts(result.plan.best,alerts,places).length,0);
  assert.equal(result.plan.best.buffer,result.plan.due-result.plan.best.arrival);
+ for(const route of result.plan.routes)assert.notEqual(route.name,'Usual fastest route','a detour must not be labelled as the usual journey');
 });
 test('unavailable crowd feeds are recorded per route without inventing a reading',async()=>{
  const result=await buildCheckedPlan({state:rachel,places,alerts:normalService,crowdFeedsFor:async routes=>routes.flatMap(route=>route.edges.map(edge=>({source:'unavailable',line:edge.line})))});

@@ -4,13 +4,13 @@ import {network} from './data/network.js';
 import {annotateCrowding} from './journey-enrichment.js';
 import {boardingCrowd,nextDeparture} from './crowding.js';
 
-// Official LTA crowding for every line used by the given routes (CCL readings also cover the Circle Line extension).
+// LTA crowd forecasts (PCDForecast) for every line used by the given routes (CCL forecasts also cover the Circle Line extension).
 export function fetchCrowdFeeds(routes) {
  const lines=[...new Set(routes.flatMap(route=>route.edges.map(edge=>edge.line)).flatMap(line=>line==='CCL'?['CCL','CEL']:[line]))];
- return Promise.all(lines.flatMap(line=>['crowding','crowding-forecast'].map(async endpoint=>{
-  try {const response=await fetch(`/api/lta/${endpoint}?line=${encodeURIComponent(line)}`,{signal:AbortSignal.timeout(10000),cache:'no-store'});return response.ok?response.json():{source:'unavailable',line};}
+ return Promise.all(lines.map(async line=>{
+  try {const response=await fetch(`/api/lta/crowding-forecast?line=${encodeURIComponent(line)}`,{signal:AbortSignal.timeout(10000),cache:'no-store'});return response.ok?response.json():{source:'unavailable',line};}
   catch {return {source:'unavailable',line};}
- })));
+ }));
 }
 
 // Turns an official alert response into the plan Margin shows: the usual journey when no listed segment touches it,
@@ -25,6 +25,9 @@ export async function buildCheckedPlan({state,places,alerts,crowdFeedsFor=fetchC
  let next;
  try {next=planJourney({...base,blockedEdges:affectedEdges.map(edge=>`${edge.from}|${edge.to}|${edge.line}`)});}
  catch {return {status:'no-alternative',plan:baseline,baseline,impacts,instruction:'Check station staff before boarding your usual line.'};}
+ // With edges blocked, the planner's "usual" route is really the fastest detour, so it must not be labelled as the usual journey.
+ const renamed=route=>route.id==='usual'?{...route,name:'Fastest route avoiding the disruption'}:route;
+ next={...next,routes:next.routes.map(renamed),best:renamed(next.best),usual:renamed(next.usual)};
  next=annotateCrowding({...next,originalUsual:baseline.usual,checkedAffectedEdges:affectedEdges},await crowdFeedsFor(next.routes),places,departure,boardingCrowd);
  const r=next.best;
  return {status:'rerouted',plan:next,baseline,impacts,instruction:r.buffer>=0?`Leave at ${state.departure}. Take ${r.lines.join(' → ')}; check platform signs.`:`Leave by ${formatTime(next.latestLeave)} if possible; the alternative misses your deadline at the saved departure time.`};
