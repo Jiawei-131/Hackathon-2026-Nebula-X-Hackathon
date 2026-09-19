@@ -59,6 +59,37 @@ main{padding:8px 18px 180px;max-width:none}.page-heading{margin-bottom:18px;alig
 .scenario-chip{flex-shrink:0;min-height:44px;padding:0 16px;border:1px solid #d5ddd2;border-radius:999px;background:#fff;color:var(--ink);font-size:14px;font-weight:550;white-space:nowrap}
 .scenario-chip[aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fff}
 .crowd-bars.none i{background:#d6dfce}
+/* Trip card: route + day, instruction, verdict, then a leave → arrive → deadline timeline. */
+.trip-heading{min-width:0;line-height:1.5;text-transform:uppercase}
+.trip-verdict{display:flex;align-items:center;gap:8px;margin:4px 0 0;font-size:16px;font-weight:650;color:#d9f4c8}
+.verdict-icon{display:grid;place-items:center;flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#2d5a45;font-size:13px}
+.trip-verdict[data-tone=tight]{color:#ffd88a}.trip-verdict[data-tone=tight] .verdict-icon{background:#5c4a1f}
+.trip-verdict[data-tone=late]{color:#ffb8a6}.trip-verdict[data-tone=late] .verdict-icon{background:#6a3528}
+.trip-verdict[data-tone=wait]{color:#c6d5cb}
+#decision-copy:empty{display:none}
+.decision-card #decision-copy{margin-top:6px;font-size:14px;color:#c6d5cb}
+.trip-timeline{display:grid;grid-template-columns:auto minmax(34px,1fr) auto minmax(34px,1fr) auto;align-items:start;column-gap:6px;margin:18px 0 16px}
+.tl-point{display:grid;justify-items:center;gap:1px;text-align:center}
+.tl-point strong{font-family:Manrope,sans-serif;font-size:22px;font-weight:650;letter-spacing:-.5px;color:#fff;line-height:1.2}
+.tl-point span{font-size:12px;color:#c6d5cb}
+.tl-point small{font-size:11px;color:#9fbca9}
+.tl-link{display:grid;justify-items:center;margin-top:5px;padding-top:6px;border-top:2px solid #6f9a80;font-size:12px;line-height:1.3;color:#d9f4c8;text-align:center}
+.tl-link[data-tone=tight]{border-top-style:dashed;border-color:#e0b85a;color:#ffd88a}
+.tl-link[data-tone=late]{border-top-style:dashed;border-color:#e38b74;color:#ffb8a6}
+.tl-link[data-tone=ok]#tl-spare-link{border-top-style:dotted}
+.decision-card.is-loading .trip-timeline{animation:margin-pulse 1.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.decision-card.is-loading .trip-timeline{animation:none}}
+.card-button{min-height:44px;padding:0 14px!important;border:1px solid #5d8a70!important;border-radius:10px;color:#fff!important}
+@media(max-width:359px){.tl-point strong{font-size:18px}.tl-point span,.tl-link{font-size:11px}.trip-timeline{column-gap:4px}}
+/* Disruption component: a single line when all is well, an expanded box when the trip is affected. */
+.service-status .service-main{min-width:0}
+.service-main p{margin:0}
+.service-headline{font-size:15px;font-weight:650;line-height:1.4}
+.service-sub{margin-top:3px!important;font-size:13px;font-weight:400;line-height:1.7;color:#687764}
+.service-note{margin-top:8px!important;font-size:14px!important;font-weight:400}
+.service-help{display:grid;gap:6px;margin:10px 0 0;padding:0;list-style:none;font-size:14px;font-weight:400;line-height:1.45}
+.service-help li{display:flex;gap:8px}
+#service-check:has(.service-status[data-tone=warn]){border-color:#e7b9a6;background:#fff8f4}
 .chip-divider{flex-shrink:0;align-self:stretch;width:1px;margin:6px 2px;background:#d5ddd2}
 .chip-group{display:flex;flex-shrink:0;align-items:center;gap:8px}
 .chip-group-label{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#7a5412}
