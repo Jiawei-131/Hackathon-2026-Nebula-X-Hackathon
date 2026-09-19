@@ -1,22 +1,40 @@
 import {parseAlerts,assistanceDemos,availableAssistance,routeImpacts} from './service-alerts.js';
-import {planJourney,formatTime} from './engine.js';
-import {network} from './data/network.js';
-import {annotateCrowding} from './journey-enrichment.js';
-import {boardingCrowd,nextDeparture} from './crowding.js';
+import {formatTime,lines as lineNames} from './engine.js';
+import {buildCheckedPlan,fetchCrowdFeeds} from './live-plan.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sgClock=new Intl.DateTimeFormat('en-SG',{timeZone:'Asia/Singapore',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// fetchedAt is ISO/UTC from our server; LTA CreatedDate is already Singapore local time ("YYYY-MM-DD HH:MM:SS").
+export const checkedTime=iso=>{const time=Date.parse(iso);return Number.isFinite(time)?sgClock.format(time):'';};
+const noticeTime=value=>{const m=/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(value);return m?`${Number(m[3])} ${months[m[2]-1]}, ${m[4]}`:value;};
+// Whole-word matching: " ewl " matches "EWL" or "East-West Line" wording but not "Jewel".
+const normalise=value=>` ${String(value).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()} `;
+function routeTerms(plan,places){
+ const routes=[plan.usual,plan.best].filter(Boolean),lineIds=[...new Set(routes.flatMap(route=>route.edges.map(edge=>edge.line)))];
+ const stationNames=[...new Set(routes.flatMap(route=>route.stationIds||[]))].map(id=>places[id]?.name).filter(Boolean);
+ return {lineIds,words:[...lineIds,...lineIds.map(id=>lineNames[id]).filter(Boolean),...stationNames].map(normalise)};
+}
+// Live notices are split into this trip's lines/stations and everything else; demo and fixture data are always shown in full.
+function splitNotices(data,terms){
+ const all=data.source!=='live',segments=all?data.segments:data.segments.filter(s=>terms.lineIds.includes(s.line)),messages=all?data.messages:data.messages.filter(m=>terms.words.some(word=>normalise(m.content).includes(word)));
+ return {segments,messages,otherSegments:data.segments.filter(s=>!segments.includes(s)),otherMessages:data.messages.filter(m=>!messages.includes(m))};
+}
+let alertCache=null,alertPending=null,detailsOpen=false;
+export function fetchAlerts(force=false){
+ if(!force&&alertCache&&Date.now()-alertCache.time<60000)return Promise.resolve(alertCache.data);
+ if(!force&&alertPending)return alertPending;
+ alertPending=(async()=>{
+  try {const response=await fetch('/api/lta/train-alerts',{signal:AbortSignal.timeout(10000),cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();alertCache={time:Date.now(),data};return data;}
+  catch {return {source:'unavailable',message:'Live service unavailable. Check your connection or station displays; no normal-service status is assumed.'};}
+ })().finally(()=>{alertPending=null;});
+ return alertPending;
+}
 let generation=0;
-export function mountServiceCheck({state,plan,places,onActivate}) {
- const host=document.querySelector('#service-check'),version=++generation;
- host.innerHTML=`<span class="source-label">BEFORE YOU LEAVE</span><h3>Check your usual route</h3><p>Official alerts are checked separately from the replay above. Route times remain estimates.</p><button class="outline-button" id="check-official">Check official service alerts ↗</button><details><summary>Test disruption handling</summary><p>The official LTA documentation sample checks message, direction, assistance flags, rerouting, buses and map without claiming a live event.</p><button class="outline-button" id="check-fixture">Run official-schema sample</button><button class="outline-button" data-assistance="publicBus">Free public-bus demo</button><button class="outline-button" data-assistance="shuttle">Free MRT shuttle demo</button></details><div id="service-result" role="status" aria-live="polite"></div>`;
- let requestVersion=0;
- const out=host.querySelector('#service-result');
- async function crowdFeedsFor(route) {
-  const lines=[...new Set(route.edges.map(edge=>edge.line).flatMap(line=>line==='CCL'?['CCL','CEL']:[line]))];
-  return Promise.all(lines.flatMap(line=>['crowding','crowding-forecast'].map(async endpoint=>{
-   try {const response=await fetch(`/api/lta/${endpoint}?line=${encodeURIComponent(line)}`,{signal:AbortSignal.timeout(10000),cache:'no-store'});return response.ok?response.json():{source:'unavailable',line};}
-   catch{return {source:'unavailable',line};}
-  })));
- }
+export function mountServiceCheck({state,plan,places,onActivate,originLocation=null}) {
+ const host=document.querySelector('#service-check'),version=++generation,terms=routeTerms(plan,places);
+ host.innerHTML=`<div class="service-status" data-tone="muted" role="status" aria-live="polite"><span class="service-icon" aria-hidden="true">…</span><span><span class="service-headline">Checking official LTA train alerts…</span><small class="service-sub"></small></span></div><details id="service-details"${detailsOpen?' open':''}><summary>Official LTA check details</summary><div id="service-result" role="status" aria-live="polite"></div><button class="outline-button" id="check-official">Check again</button><details class="service-tools"><summary>Test disruption handling</summary><p>The official LTA documentation sample checks message, direction, assistance flags, rerouting, buses and map without claiming a live event.</p><button class="outline-button" id="check-fixture">Run official-schema sample</button><button class="outline-button" data-assistance="publicBus">Free public-bus demo</button><button class="outline-button" data-assistance="shuttle">Free MRT shuttle demo</button></details></details>`;
+ let requestVersion=0,live=null,shown=false;
+ const out=host.querySelector('#service-result'),details=host.querySelector('#service-details'),status=host.querySelector('.service-status');
  async function busBridgeFor(route,data) {
   const ids=route.stationIds||[],affected=new Set(data.segments.flatMap(segment=>segment.stations));
   const indexes=ids.map((id,index)=>places[id]?.codes.some(code=>affected.has(code))?index:-1).filter(index=>index>=0);if(!indexes.length)return '';
@@ -28,39 +46,46 @@ export function mountServiceCheck({state,plan,places,onActivate}) {
    return `<div class="service-segment"><strong>Direct regular-bus alternatives · ${esc(places[from].name)} to ${esc(places[to].name)}</strong><p>Official LTA stops and routes, within 800 m of each rail station. These are ordinary paid services, separate from free boarding or MRT shuttles.</p>${data.options.slice(0,3).map(option=>`<p><strong>Bus ${esc(option.service)} · ${eta(option.arrival)}</strong><br>Walk ${option.walkFromMetres} m to ${esc(option.fromStop.name)} (${option.fromStop.code}), ride ${option.busStops} stops, then walk ${option.walkToMetres} m from ${esc(option.toStop.name)} (${option.toStop.code}). ${option.load?`Load: ${esc(option.load)}.`:''}</p>`).join('')}</div>`;
   } catch {return '';}
  }
+ function showStatus(data) {
+  if(version!==generation)return;
+  live=data;
+  const icon=status.querySelector('.service-icon'),headline=status.querySelector('.service-headline'),sub=status.querySelector('.service-sub');
+  if(data.source!=='live'){status.dataset.tone='muted';icon.textContent='!';headline.textContent='Live LTA alerts are unavailable right now.';sub.textContent='Check station displays before you leave.';return;}
+  const impacts=routeImpacts(plan.originalUsual||plan.usual,data,places),notices=splitNotices(data,terms),others=notices.otherSegments.length+notices.otherMessages.length,time=checkedTime(data.fetchedAt);
+  status.dataset.tone=impacts.length?'warn':'ok';icon.textContent=impacts.length?'!':'✓';
+  headline.textContent=impacts.length?'LTA reports a disruption on your usual route.':data.status==='disrupted'?'Your route is clear. LTA reports disruptions elsewhere.':'No LTA train disruptions reported.';
+  sub.textContent=[time?`Checked ${time} SGT`:'',others?`${others} other network notice${others===1?'':'s'}`:''].filter(Boolean).join(' · ');
+  if(impacts.length)details.open=true;
+ }
  async function display(data) {
   if(version!==generation)return;
-  if(data.source==='unavailable'){out.innerHTML=`<p>${esc(data.message)}</p><p>Your labelled replay is still available.</p>`;return;}
-  const demo=data.source==='demo',impacts=routeImpacts(plan.usual,data,places);
+  if(data.source==='unavailable'){out.innerHTML=`<p>${esc(data.message)}</p><p>The simulated conditions above are still available.</p>`;return;}
+  const demo=data.source==='demo';
   const names=codes=>codes.map(code=>{const station=Object.values(places).find(s=>s.codes.includes(code));return station?`${station.name} (${code})`:code;}).join(', ');
-  let instruction=impacts.length?'Check station staff before boarding your usual line.':data.status==='normal'?'No major train disruption is currently reported.':'No listed segment matches your usual route. Check the advisories below.';
-  let baseline=planJourney({...state,scenario:'normal'});
-  const baselineFeeds=await crowdFeedsFor(baseline.best);
-  baseline=annotateCrowding(baseline,baselineFeeds,places,nextDeparture(state.departure),boardingCrowd);
-  let checkedPlan=baseline;
-  const baselineCrowd=baseline.best.crowdObservations?.map(item=>`${item.stationName} ${item.line}: ${item.label}`).join('<br>')||'Crowd information unavailable.';
-  let alternative=`<p><strong>Station crowding on your route</strong><br>${baselineCrowd}</p><button class="primary-button" id="use-checked-route">Use checked conditions on my map →</button>`;
-  if(impacts.length){
-   const blockedEdges=network.edges.filter(e=>routeImpacts({edges:[e]},data,places).length).map(e=>`${e.from}|${e.to}|${e.line}`);
-   try {
-    let next=planJourney({...state,scenario:'normal',blockedEdges});
-    next={...next,originalUsual:plan.originalUsual||plan.usual,checkedAffectedEdges:network.edges.filter(e=>routeImpacts({edges:[e]},data,places).length)};
-    const feeds=await crowdFeedsFor(next.best);
-    next=annotateCrowding(next,feeds,places,nextDeparture(state.departure),boardingCrowd);
-    const r=next.best;checkedPlan=next;
-    const crowd=r.crowdObservations?.map(item=>`${item.stationName} ${item.line}: ${item.label}`).join('<br>')||'Crowd information unavailable.';
-    instruction=r.buffer>=0?`Leave at ${state.departure}. Take ${r.lines.join(' → ')}; check platform signs.`:`Leave by ${formatTime(next.latestLeave)} if possible; the alternative misses your deadline at the saved departure time.`;
-    const busBridge=await busBridgeFor(plan.usual,data);
-    alternative=`<p><strong>Alternative avoiding listed affected stations</strong><br>Estimated arrival ${formatTime(next.start+r.min)}–${formatTime(r.arrival)} · ${r.transfers} transfers · ${r.buffer>=0?r.buffer+' min buffer':-r.buffer+' min late'}</p><p><strong>Station crowding</strong><br>${crowd}</p><button class="primary-button" id="use-checked-route">Use this route on my map →</button><details><summary>View alternative journey steps</summary><ol>${r.steps.map(s=>`<li><strong>${esc(s.title)}</strong><br>${esc(s.detail)} · ${s.minutes} min estimated</li>`).join('')}</ol></details>${busBridge}<p>Conservative: both directions and adjacent edges are excluded. Current observations are used only for an immediate boarding interval; otherwise Margin uses the applicable daily LTA forecast.</p>`;
-   }catch {alternative='<p>No alternative rail route could be found. Check official assistance and station staff; no bus route or arrival time has been invented.</p>';}
+  const crowdFor=route=>route.crowdObservations?.map(item=>`${item.stationName} ${item.line}: ${item.label}`).join('<br>')||'Crowd information unavailable.';
+  const result=await buildCheckedPlan({state,places,alerts:data,crowdFeedsFor:fetchCrowdFeeds,originLocation});
+  const {impacts,instruction,baseline}=result,checkedPlan=result.status==='no-alternative'?null:result.plan;
+  let alternative=`<p><strong>Station crowding on your route</strong><br>${crowdFor(baseline.best)}</p><button class="primary-button" id="use-checked-route">Use checked conditions on my map →</button>`;
+  if(result.status==='rerouted'){
+   const next=result.plan,r=next.best,busBridge=await busBridgeFor(baseline.usual,data);
+   alternative=`<p><strong>Alternative avoiding listed affected stations</strong><br>Estimated arrival ${formatTime(next.start+r.min)}–${formatTime(r.arrival)} · ${r.transfers} transfers · ${r.buffer>=0?r.buffer+' min buffer':-r.buffer+' min late'}</p><p><strong>Station crowding</strong><br>${crowdFor(r)}</p><button class="primary-button" id="use-checked-route">Use this route on my map →</button><details><summary>View alternative journey steps</summary><ol>${r.steps.map(s=>`<li><strong>${esc(s.title)}</strong><br>${esc(s.detail)} · ${s.minutes} min estimated</li>`).join('')}</ol></details>${busBridge}<p>Conservative: both directions and adjacent edges are excluded. Current observations are used only for an immediate boarding interval; otherwise Margin uses the applicable daily LTA forecast.</p>`;
   }
-  const fixture=data.source==='fixture',validation=impacts.length?'message parsed · direction parsed · assistance flags separated · affected edges identified · reroute calculated · map action ready':'message parsed · direction parsed · assistance flags separated · selected route correctly marked unaffected';out.innerHTML=`<span class="source-label">${fixture?'OFFICIAL-SCHEMA FIXTURE · NOT LIVE':demo?'DEMO DATA · SYNTHETIC ASSISTANCE':'LTA SERVICE CHECK · '+esc(data.fetchedAt)}</span><h3>${esc(instruction)}</h3>${fixture?`<p><strong>Validation passed:</strong> ${validation}.</p>`:''}${alternative}${data.segments.map(s=>`<div class="service-segment"><strong>${esc(s.line)} · ${esc(s.direction)}</strong><p>Affected: ${esc(names(s.stations))}</p><p><strong>${availableAssistance(s.publicBus)?'Free public bus boarding available':'Free public-bus boarding: not listed'}</strong>${availableAssistance(s.publicBus)?'<br>'+esc(s.publicBus):''}</p><p><strong>${availableAssistance(s.shuttle)?'Free MRT shuttle available':'Free MRT shuttle: not listed'}</strong>${availableAssistance(s.shuttle)?'<br>'+esc(s.shuttle)+' · '+esc(s.shuttleDirection):''}</p></div>`).join('')}${data.messages.map(m=>`<p>${esc(m.content)}<br><small>${esc(m.createdAt)}</small></p>`).join('')}<p>Regular free bus boarding is not a dedicated shuttle. Follow official signs for boarding points and eligible services. Bus arrivals are not inferred for shuttle services.</p>`;
-  if(checkedPlan)host.querySelector('#use-checked-route').onclick=()=>onActivate?.(checkedPlan,{source:demo||fixture?'demo':'live',headline:instruction});
+  if(result.status==='no-alternative')alternative='<p>No alternative rail route could be found. Check official assistance and station staff; no bus route or arrival time has been invented.</p>';
+  if(version!==generation)return;
+  const fixture=data.source==='fixture',validation=impacts.length?'message parsed · direction parsed · assistance flags separated · affected edges identified · reroute calculated · map action ready':'message parsed · direction parsed · assistance flags separated · selected route correctly marked unaffected';
+  const notices=splitNotices(data,terms),others=notices.otherSegments.length+notices.otherMessages.length,time=checkedTime(data.fetchedAt);
+  const segmentHtml=s=>`<div class="service-segment"><strong>${esc(s.line)} · ${esc(s.direction)}</strong><p>Affected: ${esc(names(s.stations))}</p><p><strong>${availableAssistance(s.publicBus)?'Free public bus boarding available':'Free public-bus boarding: not listed'}</strong>${availableAssistance(s.publicBus)?'<br>'+esc(s.publicBus):''}</p><p><strong>${availableAssistance(s.shuttle)?'Free MRT shuttle available':'Free MRT shuttle: not listed'}</strong>${availableAssistance(s.shuttle)?'<br>'+esc(s.shuttle)+' · '+esc(s.shuttleDirection):''}</p></div>`;
+  const messageHtml=m=>`<p>${esc(m.content)}<br><small>${esc(noticeTime(m.createdAt))}</small></p>`;
+  out.innerHTML=`<span class="source-label">${fixture?'OFFICIAL-SCHEMA FIXTURE · NOT LIVE':demo?'DEMO DATA · SYNTHETIC ASSISTANCE':'LIVE LTA CHECK'+(time?' · '+esc(time)+' SGT':'')}</span><h3>${esc(instruction)}</h3>${fixture?`<p><strong>Validation passed:</strong> ${validation}.</p>`:''}${alternative}${notices.segments.map(segmentHtml).join('')}${notices.messages.map(messageHtml).join('')}${others?`<details class="other-notices"><summary>Other network notices (${others})</summary>${notices.otherSegments.map(segmentHtml).join('')}${notices.otherMessages.map(messageHtml).join('')}</details>`:''}${data.segments.length?'<p>Regular free bus boarding is not a dedicated shuttle. Follow official signs for boarding points and eligible services. Bus arrivals are not inferred for shuttle services.</p>':''}`;
+  const useRoute=host.querySelector('#use-checked-route');if(checkedPlan&&useRoute)useRoute.onclick=()=>onActivate?.(checkedPlan,{source:demo||fixture?'demo':'live',headline:instruction,impacted:impacts.length>0,fetchedAt:data.fetchedAt});
  }
+ // The live status loads automatically; the heavier route check runs only once the details are open.
+ function showDetails(){if(details.open&&live&&!shown){shown=true;display(live);}}
+ details.addEventListener('toggle',()=>{detailsOpen=details.open;showDetails();});
+ fetchAlerts().then(data=>{showStatus(data);showDetails();});
  host.querySelector('#check-official').onclick=async event=>{
   const request=++requestVersion,button=event.currentTarget;button.disabled=true;out.textContent='Checking official alerts…';out.setAttribute('aria-busy','true');
-  try {const response=await fetch('/api/lta/train-alerts',{signal:AbortSignal.timeout(10000),cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(request===requestVersion)await display(data);}
-  catch {if(request===requestVersion)display({source:'unavailable',message:'Live service unavailable. Check your connection or station displays; no normal-service status is assumed.'});}
+  try {const data=await fetchAlerts(true);if(request===requestVersion){showStatus(data);shown=true;await display(data);}}
   finally {button.disabled=false;out.setAttribute('aria-busy','false');}
  };
  host.querySelector('#check-fixture').onclick=async event=>{const button=event.currentTarget;button.disabled=true;out.textContent='Replaying official-schema sample…';try{const response=await fetch('/api/lta/train-alerts/sample',{cache:'no-store'}),raw=await response.json();await display({source:'fixture',fetchedAt:raw.fetchedAt,...parseAlerts(raw)});}catch{out.textContent='The sample could not be loaded.';}finally{button.disabled=false;}};
